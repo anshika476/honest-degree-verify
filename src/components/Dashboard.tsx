@@ -1,6 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, AlertCircle, Clock, FileText, TrendingUp, Users, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CheckCircle, AlertCircle, Clock, FileText, TrendingUp, Users, Shield, Eye, X, AlertTriangle } from "lucide-react";
+import { useState } from "react";
 
 interface DashboardStats {
   totalVerifications: number;
@@ -10,7 +13,33 @@ interface DashboardStats {
   todayVerifications: number;
 }
 
+interface VerificationCheck {
+  check: string;
+  status: "passed" | "failed" | "warning" | "pending";
+  details: string;
+}
+
+interface VerificationDetails {
+  verificationChecks: VerificationCheck[];
+  rejectionReasons?: string[];
+  issueDate: string;
+  graduateName: string;
+  degree: string;
+}
+
+interface Verification {
+  id: string;
+  fileName: string;
+  status: "verified" | "rejected" | "pending";
+  timestamp: string;
+  confidence: number | null;
+  institution: string;
+  details: VerificationDetails;
+}
+
 export const Dashboard = () => {
+  const [selectedVerification, setSelectedVerification] = useState<Verification | null>(null);
+  
   // Mock data - in real app this would come from API
   const stats: DashboardStats = {
     totalVerifications: 1247,
@@ -20,34 +49,96 @@ export const Dashboard = () => {
     todayVerifications: 23
   };
 
-  const recentVerifications = [
+  const recentVerifications: Verification[] = [
     {
-      id: "1",
+      id: "CERT-001",
       fileName: "diploma_john_doe.pdf",
       status: "verified",
       timestamp: "2 minutes ago",
-      confidence: 94
+      confidence: 94,
+      institution: "University of Technology",
+      details: {
+        verificationChecks: [
+          { check: "Institution Verification", status: "passed", details: "Institution found in official database" },
+          { check: "Signature Validation", status: "passed", details: "Digital signature verified" },
+          { check: "Format Analysis", status: "passed", details: "Document format matches institution standards" },
+          { check: "Security Features", status: "passed", details: "Watermarks and security elements verified" }
+        ],
+        issueDate: "2023-06-15",
+        graduateName: "John Doe",
+        degree: "Bachelor of Computer Science"
+      }
     },
     {
-      id: "2", 
+      id: "CERT-002", 
       fileName: "certificate_jane_smith.jpg",
       status: "rejected",
       timestamp: "15 minutes ago",
-      confidence: 32
+      confidence: 32,
+      institution: "Unknown Institution",
+      details: {
+        verificationChecks: [
+          { check: "Institution Verification", status: "failed", details: "Institution not found in official database" },
+          { check: "Signature Validation", status: "failed", details: "Invalid or missing digital signature" },
+          { check: "Format Analysis", status: "failed", details: "Document format does not match known templates" },
+          { check: "Security Features", status: "failed", details: "Missing required security watermarks" }
+        ],
+        rejectionReasons: [
+          "Institution 'Elite Academy' not found in official accredited institutions database",
+          "Document lacks required security features and watermarks",
+          "Signature verification failed - no valid digital signature found",
+          "Font and formatting inconsistencies detected",
+          "Image quality suggests possible tampering"
+        ],
+        issueDate: "2023-05-20",
+        graduateName: "Jane Smith",
+        degree: "Bachelor of Arts"
+      }
     },
     {
-      id: "3",
+      id: "CERT-003",
       fileName: "degree_mike_johnson.pdf", 
       status: "pending",
       timestamp: "1 hour ago",
-      confidence: null
+      confidence: null,
+      institution: "Technical Institute",
+      details: {
+        verificationChecks: [
+          { check: "Institution Verification", status: "pending", details: "Checking institution database..." },
+          { check: "Signature Validation", status: "pending", details: "Analyzing digital signatures..." },
+          { check: "Format Analysis", status: "pending", details: "Processing document format..." },
+          { check: "Security Features", status: "pending", details: "Scanning security elements..." }
+        ],
+        issueDate: "2023-08-10",
+        graduateName: "Mike Johnson",
+        degree: "Certificate in Web Development"
+      }
     },
     {
-      id: "4",
+      id: "CERT-004",
       fileName: "transcript_sarah_wilson.pdf",
-      status: "verified",
+      status: "rejected",
       timestamp: "2 hours ago", 
-      confidence: 87
+      confidence: 15,
+      institution: "Metropolitan College",
+      details: {
+        verificationChecks: [
+          { check: "Institution Verification", status: "passed", details: "Institution verified in official database" },
+          { check: "Signature Validation", status: "failed", details: "Signature appears to be forged" },
+          { check: "Format Analysis", status: "failed", details: "Document template does not match official format" },
+          { check: "Security Features", status: "failed", details: "Security features appear to be counterfeit" }
+        ],
+        rejectionReasons: [
+          "Digital signature analysis indicates forgery",
+          "Document template significantly differs from official Metropolitan College format", 
+          "Security watermarks appear to be artificially added",
+          "Metadata analysis shows document was created after claimed issue date",
+          "Grade point average formatting inconsistent with institutional standards"
+        ],
+        issueDate: "2023-07-22",
+        graduateName: "Sarah Wilson",
+        degree: "Bachelor of Business Administration"
+      }
     }
   ];
 
@@ -70,6 +161,21 @@ export const Dashboard = () => {
         return <CheckCircle className="w-4 h-4 text-gov-success" />;
       case "rejected":
         return <AlertCircle className="w-4 h-4 text-gov-danger" />;
+      case "pending":
+        return <Clock className="w-4 h-4 text-gov-warning" />;
+      default:
+        return null;
+    }
+  };
+
+  const getCheckIcon = (status: "passed" | "failed" | "warning" | "pending") => {
+    switch (status) {
+      case "passed":
+        return <CheckCircle className="w-4 h-4 text-gov-success" />;
+      case "failed":
+        return <X className="w-4 h-4 text-gov-danger" />;
+      case "warning":
+        return <AlertTriangle className="w-4 h-4 text-gov-warning" />;
       case "pending":
         return <Clock className="w-4 h-4 text-gov-warning" />;
       default:
@@ -145,12 +251,13 @@ export const Dashboard = () => {
         <CardContent>
           <div className="space-y-4">
             {recentVerifications.map((verification) => (
-              <div key={verification.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center space-x-3">
+              <div key={verification.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex items-center space-x-3 flex-1">
                   {getStatusIcon(verification.status)}
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium">{verification.fileName}</p>
                     <p className="text-sm text-muted-foreground">{verification.timestamp}</p>
+                    <p className="text-xs text-muted-foreground">{verification.institution}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -160,6 +267,117 @@ export const Dashboard = () => {
                     </span>
                   )}
                   {getStatusBadge(verification.status)}
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setSelectedVerification(verification)}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center space-x-2">
+                          {getStatusIcon(verification.status)}
+                          <span>Certificate Verification Details</span>
+                        </DialogTitle>
+                        <DialogDescription>
+                          Detailed analysis for {verification.fileName}
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-6">
+                        {/* Certificate Information */}
+                        <div>
+                          <h3 className="font-semibold mb-3">Certificate Information</h3>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Graduate Name:</span>
+                              <p className="font-medium">{verification.details.graduateName}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Degree:</span>
+                              <p className="font-medium">{verification.details.degree}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Institution:</span>
+                              <p className="font-medium">{verification.institution}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Issue Date:</span>
+                              <p className="font-medium">{verification.details.issueDate}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Verification Checks */}
+                        <div>
+                          <h3 className="font-semibold mb-3">Verification Checks</h3>
+                          <div className="space-y-3">
+                            {verification.details.verificationChecks.map((check, index) => (
+                              <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg">
+                                {getCheckIcon(check.status)}
+                                <div className="flex-1">
+                                  <p className="font-medium">{check.check}</p>
+                                  <p className="text-sm text-muted-foreground">{check.details}</p>
+                                </div>
+                                <Badge 
+                                  variant={check.status === "passed" ? "default" : check.status === "failed" ? "destructive" : "outline"}
+                                  className={
+                                    check.status === "passed" ? "bg-gov-success text-white" :
+                                    check.status === "warning" ? "text-gov-warning border-gov-warning" : ""
+                                  }
+                                >
+                                  {check.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Rejection Reasons (if rejected) */}
+                        {verification.status === "rejected" && verification.details.rejectionReasons && (
+                          <div>
+                            <h3 className="font-semibold mb-3 text-gov-danger flex items-center space-x-2">
+                              <AlertCircle className="w-5 h-5" />
+                              <span>Rejection Reasons</span>
+                            </h3>
+                            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                              <ul className="space-y-2">
+                                {verification.details.rejectionReasons.map((reason, index) => (
+                                  <li key={index} className="flex items-start space-x-2 text-sm">
+                                    <X className="w-4 h-4 text-gov-danger mt-0.5 flex-shrink-0" />
+                                    <span>{reason}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Confidence Score */}
+                        {verification.confidence !== null && (
+                          <div>
+                            <h3 className="font-semibold mb-3">Confidence Score</h3>
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-1 bg-muted rounded-full h-2">
+                                <div 
+                                  className={`h-2 rounded-full transition-all ${
+                                    verification.confidence >= 80 ? "bg-gov-success" :
+                                    verification.confidence >= 50 ? "bg-gov-warning" : "bg-gov-danger"
+                                  }`}
+                                  style={{ width: `${verification.confidence}%` }}
+                                />
+                              </div>
+                              <span className="font-medium">{verification.confidence}%</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
             ))}
