@@ -47,6 +47,16 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        gov: {
+          blue: "hsl(var(--gov-blue))",
+          "blue-dark": "hsl(var(--gov-blue-dark))",
+          "blue-light": "hsl(var(--gov-blue-light))",
+          gray: "hsl(var(--gov-gray))",
+          "gray-light": "hsl(var(--gov-gray-light))",
+          success: "hsl(var(--gov-success))",
+          warning: "hsl(var(--gov-warning))",
+          danger: "hsl(var(--gov-danger))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
