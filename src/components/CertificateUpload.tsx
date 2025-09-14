@@ -10,7 +10,8 @@ interface UploadedFile {
   name: string;
   size: number;
   type: string;
-  status: "pending" | "verified" | "rejected";
+  status: "uploading" | "checking" | "verifying" | "analyzing" | "verified" | "rejected";
+  processingStep?: string;
   verificationResult?: {
     isAuthentic: boolean;
     confidence: number;
@@ -29,30 +30,61 @@ export const CertificateUpload = () => {
       name: file.name,
       size: file.size,
       type: file.type,
-      status: "pending"
+      status: "uploading",
+      processingStep: "Uploading file..."
     }));
     
     setFiles(prev => [...prev, ...newFiles]);
     
-    // Simulate verification process
+    // Simulate realistic verification process with multiple steps
     newFiles.forEach(file => {
+      // Step 1: Uploading (1 second)
       setTimeout(() => {
+        setFiles(prev => prev.map(f => 
+          f.id === file.id 
+            ? { ...f, status: "checking", processingStep: "Checking document format..." }
+            : f
+        ));
+      }, 1000);
+
+      // Step 2: Format checking (1.5 seconds)
+      setTimeout(() => {
+        setFiles(prev => prev.map(f => 
+          f.id === file.id 
+            ? { ...f, status: "verifying", processingStep: "Verifying against database..." }
+            : f
+        ));
+      }, 2500);
+
+      // Step 3: Database verification (2 seconds)
+      setTimeout(() => {
+        setFiles(prev => prev.map(f => 
+          f.id === file.id 
+            ? { ...f, status: "analyzing", processingStep: "Analyzing security features..." }
+            : f
+        ));
+      }, 4500);
+
+      // Step 4: Final analysis and result (1.5 seconds)
+      setTimeout(() => {
+        const isAuthentic = Math.random() > 0.3;
         setFiles(prev => prev.map(f => 
           f.id === file.id 
             ? { 
                 ...f, 
-                status: Math.random() > 0.3 ? "verified" : "rejected",
+                status: isAuthentic ? "verified" : "rejected",
+                processingStep: undefined,
                 verificationResult: {
-                  isAuthentic: Math.random() > 0.3,
+                  isAuthentic,
                   confidence: Math.floor(Math.random() * 30) + 70,
-                  details: Math.random() > 0.3 
+                  details: isAuthentic 
                     ? "Certificate verified against government database" 
                     : "Certificate could not be verified - potential forgery detected"
                 }
               }
             : f
         ));
-      }, 2000 + Math.random() * 3000);
+      }, 6000);
     });
   };
 
@@ -96,8 +128,11 @@ export const CertificateUpload = () => {
 
   const getStatusIcon = (status: string, isAuthentic?: boolean) => {
     switch (status) {
-      case "pending":
-        return <Clock className="w-4 h-4 text-gov-warning" />;
+      case "uploading":
+      case "checking":
+      case "verifying":
+      case "analyzing":
+        return <Clock className="w-4 h-4 text-gov-warning animate-spin" />;
       case "verified":
         return isAuthentic ? 
           <CheckCircle className="w-4 h-4 text-gov-success" /> : 
@@ -111,8 +146,14 @@ export const CertificateUpload = () => {
 
   const getStatusBadge = (file: UploadedFile) => {
     switch (file.status) {
-      case "pending":
+      case "uploading":
+        return <Badge variant="outline" className="text-gov-blue border-gov-blue">Uploading...</Badge>;
+      case "checking":
+        return <Badge variant="outline" className="text-gov-warning border-gov-warning">Checking...</Badge>;
+      case "verifying":
         return <Badge variant="outline" className="text-gov-warning border-gov-warning">Verifying...</Badge>;
+      case "analyzing":
+        return <Badge variant="outline" className="text-gov-warning border-gov-warning">Analyzing...</Badge>;
       case "verified":
         return file.verificationResult?.isAuthentic ? 
           <Badge className="bg-gov-success text-white">Verified Authentic</Badge> :
@@ -189,7 +230,12 @@ export const CertificateUpload = () => {
                     <div>
                       <p className="font-medium">{file.name}</p>
                       <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
-                      {file.verificationResult && (
+                      {file.processingStep && (
+                        <p className="text-sm text-gov-blue mt-1 animate-pulse">
+                          {file.processingStep}
+                        </p>
+                      )}
+                      {file.verificationResult && !file.processingStep && (
                         <p className="text-sm text-muted-foreground mt-1">
                           Confidence: {file.verificationResult.confidence}% • {file.verificationResult.details}
                         </p>
