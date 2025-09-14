@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, X, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { verifyCertificate, CertificateVerificationResult } from "@/lib/certificateService";
+import { useToast } from "@/hooks/use-toast";
 
 interface UploadedFile {
   id: string;
@@ -12,80 +14,100 @@ interface UploadedFile {
   type: string;
   status: "uploading" | "checking" | "verifying" | "analyzing" | "verified" | "rejected";
   processingStep?: string;
-  verificationResult?: {
-    isAuthentic: boolean;
-    confidence: number;
-    details: string;
-  };
+  verificationResult?: CertificateVerificationResult;
+  file?: File;
 }
 
 export const CertificateUpload = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const handleFiles = (fileList: FileList) => {
+  const handleFiles = async (fileList: FileList) => {
     const newFiles: UploadedFile[] = Array.from(fileList).map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: file.size,
       type: file.type,
       status: "uploading",
-      processingStep: "Uploading file..."
+      processingStep: "Uploading file...",
+      file
     }));
     
     setFiles(prev => [...prev, ...newFiles]);
     
-    // Simulate realistic verification process with multiple steps
-    newFiles.forEach(file => {
-      // Step 1: Uploading (1 second)
-      setTimeout(() => {
+    // Process each file through blockchain verification
+    for (const fileItem of newFiles) {
+      try {
+        // Step 1: Uploading
         setFiles(prev => prev.map(f => 
-          f.id === file.id 
+          f.id === fileItem.id 
             ? { ...f, status: "checking", processingStep: "Checking document format..." }
             : f
         ));
-      }, 1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Step 2: Format checking (1.5 seconds)
-      setTimeout(() => {
+        // Step 2: Format checking
         setFiles(prev => prev.map(f => 
-          f.id === file.id 
-            ? { ...f, status: "verifying", processingStep: "Verifying against database..." }
+          f.id === fileItem.id 
+            ? { ...f, status: "verifying", processingStep: "Generating blockchain hash..." }
             : f
         ));
-      }, 2500);
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Step 3: Database verification (2 seconds)
-      setTimeout(() => {
+        // Step 3: Blockchain verification
         setFiles(prev => prev.map(f => 
-          f.id === file.id 
-            ? { ...f, status: "analyzing", processingStep: "Analyzing security features..." }
+          f.id === fileItem.id 
+            ? { ...f, status: "analyzing", processingStep: "Verifying against blockchain database..." }
             : f
         ));
-      }, 4500);
 
-      // Step 4: Final analysis and result (1.5 seconds)
-      setTimeout(() => {
-        const isAuthentic = Math.random() > 0.3;
+        // Actual blockchain verification
+        const verificationResult = await verifyCertificate(fileItem.file!);
+        
         setFiles(prev => prev.map(f => 
-          f.id === file.id 
+          f.id === fileItem.id 
             ? { 
                 ...f, 
-                status: isAuthentic ? "verified" : "rejected",
+                status: verificationResult.isAuthentic ? "verified" : "rejected",
+                processingStep: undefined,
+                verificationResult
+              }
+            : f
+        ));
+
+        // Show toast notification
+        toast({
+          title: verificationResult.isAuthentic ? "Certificate Verified" : "Verification Failed",
+          description: verificationResult.details,
+          variant: verificationResult.isAuthentic ? "default" : "destructive"
+        });
+
+      } catch (error) {
+        console.error('Verification error:', error);
+        setFiles(prev => prev.map(f => 
+          f.id === fileItem.id 
+            ? { 
+                ...f, 
+                status: "rejected",
                 processingStep: undefined,
                 verificationResult: {
-                  isAuthentic,
-                  confidence: Math.floor(Math.random() * 30) + 70,
-                  details: isAuthentic 
-                    ? "Certificate verified against government database" 
-                    : "Certificate could not be verified - potential forgery detected"
+                  isAuthentic: false,
+                  confidence: 0,
+                  details: `Verification failed: ${error.message}`
                 }
               }
             : f
         ));
-      }, 6000);
-    });
+
+        toast({
+          title: "Verification Error",
+          description: `Failed to verify ${fileItem.name}: ${error.message}`,
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -236,9 +258,22 @@ export const CertificateUpload = () => {
                         </p>
                       )}
                       {file.verificationResult && !file.processingStep && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Confidence: {file.verificationResult.confidence}% • {file.verificationResult.details}
-                        </p>
+                        <div className="text-sm mt-1 space-y-1">
+                          <p className="text-muted-foreground">
+                            Confidence: {file.verificationResult.confidence}% • {file.verificationResult.details}
+                          </p>
+                          {file.verificationResult.hash && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              Hash: {file.verificationResult.hash.substring(0, 16)}...
+                            </p>
+                          )}
+                          {file.verificationResult.certificateInfo && (
+                            <div className="text-xs text-muted-foreground">
+                              <p>Issuer: {file.verificationResult.certificateInfo.issuer}</p>
+                              <p>Holder: {file.verificationResult.certificateInfo.holder}</p>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
